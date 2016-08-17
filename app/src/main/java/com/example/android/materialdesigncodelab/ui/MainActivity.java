@@ -42,6 +42,7 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.SearchView;
 import android.support.v7.widget.Toolbar;
+import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -130,6 +131,7 @@ public class MainActivity extends AppCompatActivity {
         mRecyclerView.setAdapter(mContentAdapter);
         mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         mRecyclerView.setHasFixedSize(true);
+        mRecyclerView.setVisibility(View.GONE);
     }
 
     // Add Fragments to Tabs
@@ -185,12 +187,17 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public boolean onQueryTextChange(String newText) {
-                AmapUtils.inputTips(getApplicationContext(), newText, "", new Inputtips.InputtipsListener() {
-                    @Override
-                    public void onGetInputtips(List<Tip> list, int i) {
-                        mContentAdapter.update(list);
-                    }
-                });
+                if (TextUtils.isEmpty(newText)) {
+                    mRecyclerView.setVisibility(View.GONE);
+                } else {
+                    AmapUtils.inputTips(getApplicationContext(), newText, "", new Inputtips.InputtipsListener() {
+                        @Override
+                        public void onGetInputtips(List<Tip> list, int i) {
+                            mContentAdapter.update(list);
+                            mRecyclerView.setVisibility(View.VISIBLE);
+                        }
+                    });
+                }
                 return false;
             }
         });
@@ -261,6 +268,14 @@ public class MainActivity extends AppCompatActivity {
         public void update(List<Tip> list) {
             mList = list;
             notifyDataSetChanged();
+        }
+    }
+
+    @Override
+    public void onBackPressed() {
+        super.onBackPressed();
+        if (View.VISIBLE == mRecyclerView.getVisibility()) {
+            mRecyclerView.setVisibility(View.GONE);
         }
     }
 }
