@@ -23,6 +23,8 @@ import com.amap.api.maps2d.LocationSource;
 import com.amap.api.maps2d.MapView;
 import com.amap.api.maps2d.model.BitmapDescriptorFactory;
 import com.amap.api.maps2d.model.LatLng;
+import com.amap.api.maps2d.model.Marker;
+import com.amap.api.maps2d.model.MarkerOptions;
 import com.amap.api.maps2d.model.MyLocationStyle;
 import com.example.android.materialdesigncodelab.R;
 import com.example.android.materialdesigncodelab.ui.components.MarqueeFloatWindow;
@@ -46,8 +48,7 @@ public class InstantMapAcitivity extends AppCompatActivity implements LocationSo
     private AMapLocationClient mlocationClient;
     private AMapLocationClientOption mLocationOption;
     private String mKeyword = "";
-    private double mLongitude = 0;
-    private double mLatitude = 0;
+    private LatLng mLatlng;
     boolean mMocking = false;
     private Intent mMarqueeViewIntent;
 
@@ -62,21 +63,23 @@ public class InstantMapAcitivity extends AppCompatActivity implements LocationSo
         fab = (FloatingActionButton) findViewById(R.id.fab);
         mapView = (MapView) findViewById(R.id.map);
         mapView.onCreate(savedInstanceState);// 此方法必须重写
-        mLongitude = getIntent().getDoubleExtra(QUERY_LONGITUDE, 0);
-        mLatitude = getIntent().getDoubleExtra(QUERY_LATITUDE, 0);
+        double longitude = getIntent().getDoubleExtra(QUERY_LONGITUDE, 0);
+        double latitude = getIntent().getDoubleExtra(QUERY_LATITUDE, 0);
+        mLatlng = new LatLng(latitude, longitude);
         init();
         mMarqueeViewIntent = new Intent(this, MarqueeFloatWindow.class);
 
         aMap.moveCamera(CameraUpdateFactory.zoomTo(18));
-        aMap.moveCamera(CameraUpdateFactory.changeLatLng(new LatLng(mLatitude, mLongitude)));
+        aMap.moveCamera(CameraUpdateFactory.changeLatLng(mLatlng));
+
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 if (!MockLocationProvider.isRunning(v.getContext())) {
                     mMocking = true;
-                    MockLocationProvider.startMock(v.getContext(), mLongitude, mLatitude);
-                    Snackbar.make(v, "Mocking " + mLongitude + "," + mLatitude, Snackbar.LENGTH_SHORT).show();
-                    String text = "Mocking " + mLongitude + "," + mLatitude;
+                    MockLocationProvider.startMock(v.getContext(), mLatlng.longitude, mLatlng.latitude);
+                    Snackbar.make(v, "Mocking " + mLatlng.longitude + "," + mLatlng.latitude, Snackbar.LENGTH_SHORT).show();
+                    String text = "Mocking " + mLatlng.longitude + "," + mLatlng.latitude;
                     mMarqueeViewIntent.putExtra(MarqueeFloatWindow.TEXT, text);
                     v.getContext().startService(mMarqueeViewIntent);
                 } else {
@@ -113,9 +116,36 @@ public class InstantMapAcitivity extends AppCompatActivity implements LocationSo
         myLocationStyle.strokeWidth(1.0f);// 设置圆形的边框粗细
         aMap.setMyLocationStyle(myLocationStyle);
         aMap.setLocationSource(this);// 设置定位监听
-        aMap.getUiSettings().setMyLocationButtonEnabled(true);// 设置默认定位按钮是否显示
+        aMap.getUiSettings().setMyLocationButtonEnabled(false);// 设置默认定位按钮是否显示
         aMap.setMyLocationEnabled(false);// 设置为true表示显示定位层并可触发定位，false表示隐藏定位层并不可触发定位，默认是false
         // aMap.setMyLocationType()
+
+        aMap.setOnMapLongClickListener(new AMap.OnMapLongClickListener() {
+            @Override
+            public void onMapLongClick(LatLng latLng) {
+                showMarkerAt(latLng);
+            }
+        });
+    }
+
+    public void showMarkerAt(LatLng latLng) {
+        AMapLocation location = new AMapLocation("gps");
+        location.setLongitude(latLng.longitude);
+        location.setLatitude(latLng.latitude);
+        mLatlng = latLng;
+        Snackbar.make(mapView, "long click at: " + latLng.longitude + " " + latLng.latitude, Snackbar.LENGTH_SHORT).show();
+        if (mapView.getMap().getMapScreenMarkers().size() > 0) {
+            Marker marker = mapView.getMap().getMapScreenMarkers().get(0);
+            marker.setPosition(latLng);
+            marker.setTitle("pos");
+            marker.setSnippet(latLng.longitude + " " + latLng.latitude);
+        } else {
+            MarkerOptions markerOptions = new MarkerOptions();
+            markerOptions.position(latLng);
+            markerOptions.title("pos");
+            markerOptions.snippet(latLng.longitude + " " + latLng.latitude);
+            mapView.getMap().addMarker(markerOptions).showInfoWindow();
+        }
     }
 
     /**
@@ -125,6 +155,16 @@ public class InstantMapAcitivity extends AppCompatActivity implements LocationSo
     protected void onResume() {
         super.onResume();
         mapView.onResume();
+        try {
+            mapView.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    showMarkerAt(mLatlng);
+                }
+            }, 1000);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     /**
