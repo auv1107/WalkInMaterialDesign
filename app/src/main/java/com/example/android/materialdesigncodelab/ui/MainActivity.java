@@ -116,6 +116,7 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 Context context = v.getContext();
                 Intent intent = new Intent(context, InstantMapAcitivity.class);
+                intent.putExtra(InstantMapAcitivity.NEED_LOCATE, true);
                 context.startActivity(intent);
             }
         });
@@ -254,6 +255,7 @@ public class MainActivity extends AppCompatActivity {
                         Intent intent = new Intent(context, InstantMapAcitivity.class);
                         intent.putExtra(InstantMapAcitivity.QUERY_LATITUDE, p.getLatitude());
                         intent.putExtra(InstantMapAcitivity.QUERY_LONGITUDE, p.getLongitude());
+                        intent.putExtra(InstantMapAcitivity.NEED_LOCATE, false);
                         context.startActivity(intent);
                     }
                 });

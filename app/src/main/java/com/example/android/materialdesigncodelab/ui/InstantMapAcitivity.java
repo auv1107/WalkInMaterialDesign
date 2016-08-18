@@ -28,6 +28,7 @@ import com.amap.api.maps2d.model.MarkerOptions;
 import com.amap.api.maps2d.model.MyLocationStyle;
 import com.example.android.materialdesigncodelab.R;
 import com.example.android.materialdesigncodelab.ui.components.MarqueeFloatWindow;
+import com.example.android.materialdesigncodelab.utils.AmapUtils;
 import com.example.android.materialdesigncodelab.utils.MockLocationProvider;
 
 /**
@@ -42,6 +43,7 @@ public class InstantMapAcitivity extends AppCompatActivity implements LocationSo
         AMapLocationListener {
     public static final String QUERY_LONGITUDE = "query_longitude";
     public static final String QUERY_LATITUDE = "query_latitude";
+    public static final String NEED_LOCATE = "NEED_LOCATE";
     private AMap aMap;
     private MapView mapView;
     private OnLocationChangedListener mListener;
@@ -49,6 +51,7 @@ public class InstantMapAcitivity extends AppCompatActivity implements LocationSo
     private AMapLocationClientOption mLocationOption;
     private String mKeyword = "";
     private LatLng mLatlng;
+    private boolean mNeedLocate = false;
     boolean mMocking = false;
     private Intent mMarqueeViewIntent;
 
@@ -65,12 +68,30 @@ public class InstantMapAcitivity extends AppCompatActivity implements LocationSo
         mapView.onCreate(savedInstanceState);// 此方法必须重写
         double longitude = getIntent().getDoubleExtra(QUERY_LONGITUDE, 0);
         double latitude = getIntent().getDoubleExtra(QUERY_LATITUDE, 0);
+        mNeedLocate = getIntent().getBooleanExtra(NEED_LOCATE, false);
         mLatlng = new LatLng(latitude, longitude);
         init();
-        mMarqueeViewIntent = new Intent(this, MarqueeFloatWindow.class);
+        if (mNeedLocate) {
+            AmapUtils.startLocationOnce(this, this);
+        } else {
+            try {
+                if (!mNeedLocate) {
+                    mapView.postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            showMarkerAt(mLatlng);
+                        }
+                    }, 1000);
+                }
 
-        aMap.moveCamera(CameraUpdateFactory.zoomTo(18));
-        aMap.moveCamera(CameraUpdateFactory.changeLatLng(mLatlng));
+                aMap.moveCamera(CameraUpdateFactory.zoomTo(18));
+                aMap.moveCamera(CameraUpdateFactory.changeLatLng(mLatlng));
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        mMarqueeViewIntent = new Intent(this, MarqueeFloatWindow.class);
 
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -106,23 +127,13 @@ public class InstantMapAcitivity extends AppCompatActivity implements LocationSo
      * 设置一些amap的属性
      */
     private void setUpMap() {
-        // 自定义系统定位小蓝点
-        MyLocationStyle myLocationStyle = new MyLocationStyle();
-        myLocationStyle.myLocationIcon(BitmapDescriptorFactory
-                .fromResource(R.drawable.ic_add));// 设置小蓝点的图标
-        myLocationStyle.strokeColor(Color.BLACK);// 设置圆形的边框颜色
-        myLocationStyle.radiusFillColor(Color.argb(100, 0, 0, 180));// 设置圆形的填充颜色
-        // myLocationStyle.anchor(int,int)//设置小蓝点的锚点
-        myLocationStyle.strokeWidth(1.0f);// 设置圆形的边框粗细
-        aMap.setMyLocationStyle(myLocationStyle);
-        aMap.setLocationSource(this);// 设置定位监听
         aMap.getUiSettings().setMyLocationButtonEnabled(false);// 设置默认定位按钮是否显示
         aMap.setMyLocationEnabled(false);// 设置为true表示显示定位层并可触发定位，false表示隐藏定位层并不可触发定位，默认是false
-        // aMap.setMyLocationType()
 
         aMap.setOnMapLongClickListener(new AMap.OnMapLongClickListener() {
             @Override
             public void onMapLongClick(LatLng latLng) {
+                mLatlng = latLng;
                 showMarkerAt(latLng);
             }
         });
@@ -139,6 +150,7 @@ public class InstantMapAcitivity extends AppCompatActivity implements LocationSo
             marker.setPosition(latLng);
             marker.setTitle("pos");
             marker.setSnippet(latLng.longitude + " " + latLng.latitude);
+            marker.showInfoWindow();
         } else {
             MarkerOptions markerOptions = new MarkerOptions();
             markerOptions.position(latLng);
@@ -155,16 +167,6 @@ public class InstantMapAcitivity extends AppCompatActivity implements LocationSo
     protected void onResume() {
         super.onResume();
         mapView.onResume();
-        try {
-            mapView.postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    showMarkerAt(mLatlng);
-                }
-            }, 1000);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 
     /**
@@ -200,14 +202,15 @@ public class InstantMapAcitivity extends AppCompatActivity implements LocationSo
      */
     @Override
     public void onLocationChanged(AMapLocation amapLocation) {
-        if (mListener != null && amapLocation != null) {
-            if (amapLocation != null
-                    && amapLocation.getErrorCode() == 0) {
-                mListener.onLocationChanged(amapLocation);// 显示系统小蓝点
-            } else {
-                String errText = "定位失败," + amapLocation.getErrorCode()+ ": " + amapLocation.getErrorInfo();
-                Log.e("AmapErr",errText);
-            }
+        if (amapLocation != null
+                && amapLocation.getErrorCode() == 0) {
+            mLatlng = new LatLng(amapLocation.getLatitude(), amapLocation.getLongitude());
+            showMarkerAt(mLatlng);
+            aMap.moveCamera(CameraUpdateFactory.zoomTo(18));
+            aMap.moveCamera(CameraUpdateFactory.changeLatLng(mLatlng));
+        } else {
+            String errText = "定位失败," + amapLocation.getErrorCode()+ ": " + amapLocation.getErrorInfo();
+            Log.e("AmapErr",errText);
         }
     }
 

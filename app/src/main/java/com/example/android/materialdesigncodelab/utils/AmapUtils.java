@@ -2,6 +2,10 @@ package com.example.android.materialdesigncodelab.utils;
 
 import android.content.Context;
 
+import com.amap.api.location.AMapLocation;
+import com.amap.api.location.AMapLocationClient;
+import com.amap.api.location.AMapLocationClientOption;
+import com.amap.api.location.AMapLocationListener;
 import com.amap.api.services.help.Inputtips;
 import com.amap.api.services.help.InputtipsQuery;
 import com.amap.api.services.poisearch.PoiSearch;
@@ -10,6 +14,8 @@ import com.amap.api.services.poisearch.PoiSearch;
  * Created by lixindong on 8/8/16.
  */
 public class AmapUtils {
+    private static AMapLocationClient mlocationClient;
+
     public static void queryPOI(Context context, String keyWord, String cityCode, int page, PoiSearch.OnPoiSearchListener listener){
         PoiSearch.Query query = new PoiSearch.Query(keyWord, "", cityCode);
         // keyWord表示搜索字符串，
@@ -30,5 +36,31 @@ public class AmapUtils {
         Inputtips inputtips = new Inputtips(context, listener);
         inputtips.setQuery(new InputtipsQuery(s1, s2));
         inputtips.requestInputtipsAsyn();
+    }
+
+    public static void startLocationOnce(Context context, final AMapLocationListener listener) {
+        if (mlocationClient == null) {
+            mlocationClient = new AMapLocationClient(context);
+            AMapLocationClientOption locationOption = new AMapLocationClientOption();
+            //设置定位监听
+            mlocationClient.setLocationListener(new AMapLocationListener() {
+                @Override
+                public void onLocationChanged(AMapLocation aMapLocation) {
+                    mlocationClient.stopLocation();
+                    if (listener != null) {
+                        listener.onLocationChanged(aMapLocation);
+                    }
+                }
+            });
+            //设置为高精度定位模式
+            locationOption.setLocationMode(AMapLocationClientOption.AMapLocationMode.Hight_Accuracy);
+            //设置定位参数
+            mlocationClient.setLocationOption(locationOption);
+            // 此方法为每隔固定时间会发起一次定位请求，为了减少电量消耗或网络流量消耗，
+            // 注意设置合适的定位时间的间隔（最小间隔支持为2000ms），并且在合适时间调用stopLocation()方法来取消定位请求
+            // 在定位结束后，在合适的生命周期调用onDestroy()方法
+            // 在单次定位情况下，定位无论成功与否，都无需调用stopLocation()方法移除请求，定位sdk内部会移除
+        }
+        mlocationClient.startLocation();
     }
 }
