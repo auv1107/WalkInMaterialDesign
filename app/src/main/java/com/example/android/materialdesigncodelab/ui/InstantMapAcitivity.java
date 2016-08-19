@@ -1,35 +1,42 @@
 package com.example.android.materialdesigncodelab.ui;
 
+import android.app.SearchManager;
 import android.content.Intent;
-import android.graphics.Color;
-import android.location.Location;
 import android.os.Bundle;
-import android.os.Handler;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
+import android.support.v4.view.MenuItemCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
+import android.support.v7.widget.SearchView;
 import android.support.v7.widget.Toolbar;
+import android.text.TextUtils;
 import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.TextView;
 
 import com.amap.api.location.AMapLocation;
 import com.amap.api.location.AMapLocationClient;
-import com.amap.api.location.AMapLocationClientOption;
 import com.amap.api.location.AMapLocationListener;
 import com.amap.api.maps2d.AMap;
-import com.amap.api.maps2d.CameraUpdate;
 import com.amap.api.maps2d.CameraUpdateFactory;
-import com.amap.api.maps2d.LocationSource;
 import com.amap.api.maps2d.MapView;
-import com.amap.api.maps2d.model.BitmapDescriptorFactory;
 import com.amap.api.maps2d.model.LatLng;
 import com.amap.api.maps2d.model.Marker;
 import com.amap.api.maps2d.model.MarkerOptions;
-import com.amap.api.maps2d.model.MyLocationStyle;
+import com.amap.api.services.help.Inputtips;
+import com.amap.api.services.help.Tip;
 import com.example.android.materialdesigncodelab.R;
 import com.example.android.materialdesigncodelab.ui.components.MarqueeFloatWindow;
 import com.example.android.materialdesigncodelab.utils.AmapUtils;
 import com.example.android.materialdesigncodelab.utils.MockLocationProvider;
+
+import java.util.List;
 
 /**
  * Created by lixindong on 8/8/16.
@@ -39,38 +46,38 @@ import com.example.android.materialdesigncodelab.utils.MockLocationProvider;
 /**
  * AMapV1地图中简单介绍显示定位小蓝点
  */
-public class InstantMapAcitivity extends AppCompatActivity implements LocationSource,
-        AMapLocationListener {
+public class InstantMapAcitivity extends AppCompatActivity implements AMapLocationListener {
     public static final String QUERY_LONGITUDE = "query_longitude";
     public static final String QUERY_LATITUDE = "query_latitude";
     public static final String NEED_LOCATE = "NEED_LOCATE";
     private AMap aMap;
     private MapView mapView;
-    private OnLocationChangedListener mListener;
     private AMapLocationClient mlocationClient;
-    private AMapLocationClientOption mLocationOption;
-    private String mKeyword = "";
     private LatLng mLatlng;
-    private boolean mNeedLocate = false;
+    private boolean mNeedLocate = true;
     boolean mMocking = false;
     private Intent mMarqueeViewIntent;
 
     private FloatingActionButton fab;
+    private ContentAdapter mContentAdapter;
+    private SearchView mSearchView;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_instant_map);
         setSupportActionBar((Toolbar) findViewById(R.id.toolbar));
-        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+//        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setTitle(R.string.instant_map_title);
         fab = (FloatingActionButton) findViewById(R.id.fab);
         mapView = (MapView) findViewById(R.id.map);
         mapView.onCreate(savedInstanceState);// 此方法必须重写
         double longitude = getIntent().getDoubleExtra(QUERY_LONGITUDE, 0);
         double latitude = getIntent().getDoubleExtra(QUERY_LATITUDE, 0);
-        mNeedLocate = getIntent().getBooleanExtra(NEED_LOCATE, false);
+        mNeedLocate = getIntent().getBooleanExtra(NEED_LOCATE, true);
         mLatlng = new LatLng(latitude, longitude);
         init();
+        initListView();
         if (mNeedLocate) {
             AmapUtils.startLocationOnce(this, this);
         } else {
@@ -96,19 +103,16 @@ public class InstantMapAcitivity extends AppCompatActivity implements LocationSo
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (!MockLocationProvider.isRunning(v.getContext())) {
-                    mMocking = true;
-                    MockLocationProvider.startMock(v.getContext(), mLatlng.longitude, mLatlng.latitude);
-                    Snackbar.make(v, "Mocking " + mLatlng.longitude + "," + mLatlng.latitude, Snackbar.LENGTH_SHORT).show();
-                    String text = "Mocking " + mLatlng.longitude + "," + mLatlng.latitude;
-                    mMarqueeViewIntent.putExtra(MarqueeFloatWindow.TEXT, text);
-                    v.getContext().startService(mMarqueeViewIntent);
-                } else {
+                if (MockLocationProvider.isRunning(v.getContext())) {
                     MockLocationProvider.stopMock(v.getContext());
-                    mMocking = false;
-                    Snackbar.make(v, "Mocking stopped", Snackbar.LENGTH_SHORT).show();
                     v.getContext().stopService(mMarqueeViewIntent);
                 }
+                String text = "Mocking " + mLatlng.longitude + "," + mLatlng.latitude;
+                Snackbar.make(v, text, Snackbar.LENGTH_SHORT).show();
+                mMarqueeViewIntent.putExtra(MarqueeFloatWindow.TEXT, text);
+                v.getContext().startService(mMarqueeViewIntent);
+
+                MockLocationProvider.startMock(v.getContext(), mLatlng.longitude, mLatlng.latitude);
             }
         });
     }
@@ -176,7 +180,6 @@ public class InstantMapAcitivity extends AppCompatActivity implements LocationSo
     protected void onPause() {
         super.onPause();
         mapView.onPause();
-        deactivate();
     }
 
     /**
@@ -197,6 +200,53 @@ public class InstantMapAcitivity extends AppCompatActivity implements LocationSo
         mapView.onDestroy();
     }
 
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle item selection
+        switch (item.getItemId()) {
+            case R.id.action_stopmock:
+                MockLocationProvider.stopMock(this);
+                stopService(mMarqueeViewIntent);
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+    }
+
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        MenuItem setting = menu.findItem(R.id.action_stopmock);
+        mSearchView = (SearchView) MenuItemCompat.getActionView(menu.findItem(R.id.action_search));
+        SearchManager searchManager = (SearchManager) getSystemService(SEARCH_SERVICE);
+        mSearchView.setSearchableInfo(searchManager.getSearchableInfo(getComponentName()));
+        mSearchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                return false;
+            }
+
+            @Override
+            public boolean onQueryTextChange(String newText) {
+                if (TextUtils.isEmpty(newText)) {
+                    mRecyclerView.setVisibility(View.GONE);
+                } else {
+                    AmapUtils.inputTips(getApplicationContext(), newText, "", new Inputtips.InputtipsListener() {
+                        @Override
+                        public void onGetInputtips(List<Tip> list, int i) {
+                            mContentAdapter.update(list);
+                            mRecyclerView.setVisibility(View.VISIBLE);
+                        }
+                    });
+                }
+                return false;
+            }
+        });
+        return true;
+    }
+
     /**
      * 定位成功后回调函数
      */
@@ -215,39 +265,79 @@ public class InstantMapAcitivity extends AppCompatActivity implements LocationSo
     }
 
     /**
-     * 激活定位
-     */
-    @Override
-    public void activate(OnLocationChangedListener listener) {
-        mListener = listener;
-        if (mlocationClient == null) {
-            mlocationClient = new AMapLocationClient(this);
-            mLocationOption = new AMapLocationClientOption();
-            //设置定位监听
-            mlocationClient.setLocationListener(this);
-            //设置为高精度定位模式
-            mLocationOption.setLocationMode(AMapLocationClientOption.AMapLocationMode.Hight_Accuracy);
-            //设置定位参数
-            mlocationClient.setLocationOption(mLocationOption);
-            // 此方法为每隔固定时间会发起一次定位请求，为了减少电量消耗或网络流量消耗，
-            // 注意设置合适的定位时间的间隔（最小间隔支持为2000ms），并且在合适时间调用stopLocation()方法来取消定位请求
-            // 在定位结束后，在合适的生命周期调用onDestroy()方法
-            // 在单次定位情况下，定位无论成功与否，都无需调用stopLocation()方法移除请求，定位sdk内部会移除
-            mlocationClient.startLocation();
-        }
-    }
-
-    /**
      * 停止定位
      */
-    @Override
-    public void deactivate() {
-        mListener = null;
-        if (mlocationClient != null) {
-            mlocationClient.stopLocation();
-            mlocationClient.onDestroy();
-        }
-        mlocationClient = null;
+
+    RecyclerView mRecyclerView;
+
+    private void initListView() {
+        mContentAdapter = new ContentAdapter(this);
+        mRecyclerView = (RecyclerView) findViewById(R.id.search_result_list);
+        mRecyclerView.setAdapter(mContentAdapter);
+        mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+        mRecyclerView.setHasFixedSize(true);
+        mRecyclerView.setVisibility(View.GONE);
     }
 
+
+    static class ContentAdapter extends RecyclerView.Adapter<ViewHolder> {
+        List<Tip> mList = null;
+        InstantMapAcitivity mActivity;
+
+        public ContentAdapter(InstantMapAcitivity acitivity) {
+            mActivity = acitivity;
+        }
+        @Override
+        public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+            return new ViewHolder(LayoutInflater.from(parent.getContext()), parent);
+        }
+
+        @Override
+        public void onBindViewHolder(ViewHolder holder, int position) {
+            if (position < getItemCount()) {
+                final Tip tip = mList.get(position);
+                final String content = mList.get(position).getName();
+                holder.mName.setText(content);
+                holder.mName.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        mActivity.mLatlng = new LatLng(tip.getPoint().getLatitude(), tip.getPoint().getLongitude());
+                        mActivity.showMarkerAt(mActivity.mLatlng);
+                        if (View.VISIBLE == mActivity.mRecyclerView.getVisibility()) {
+                            mActivity.mRecyclerView.setVisibility(View.GONE);
+                        }
+                        mActivity.aMap.moveCamera(CameraUpdateFactory.zoomTo(18));
+                        mActivity.aMap.moveCamera(CameraUpdateFactory.changeLatLng(mActivity.mLatlng));
+                        mActivity.mSearchView.clearFocus();
+                    }
+                });
+            }
+        }
+
+        @Override
+        public int getItemCount() {
+            return mList == null ? 0 : mList.size();
+        }
+
+        public void update(List<Tip> list) {
+            mList = list;
+            notifyDataSetChanged();
+        }
+    }
+
+    static class ViewHolder extends RecyclerView.ViewHolder {
+        TextView mName;
+        public ViewHolder(LayoutInflater inflater, ViewGroup parent) {
+            super(inflater.inflate(R.layout.item_search_result_list, parent, false));
+            mName = (TextView) itemView.findViewById(R.id.name);
+        }
+    }
+
+    @Override
+    public void onBackPressed() {
+        super.onBackPressed();
+        if (View.VISIBLE == mRecyclerView.getVisibility()) {
+            mRecyclerView.setVisibility(View.GONE);
+        }
+    }
 }
