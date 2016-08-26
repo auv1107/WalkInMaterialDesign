@@ -52,6 +52,7 @@ public class InstantMapAcitivity extends AppCompatActivity implements AMapLocati
     public static final String NEED_LOCATE = "NEED_LOCATE";
     private AMap aMap;
     private MapView mapView;
+    private Marker mMarker = null;
     private AMapLocationClient mlocationClient;
     private LatLng mLatlng;
     private boolean mNeedLocate = true;
@@ -149,19 +150,15 @@ public class InstantMapAcitivity extends AppCompatActivity implements AMapLocati
         location.setLatitude(latLng.latitude);
         mLatlng = latLng;
         Snackbar.make(mapView, "long click at: " + latLng.longitude + " " + latLng.latitude, Snackbar.LENGTH_SHORT).show();
-        if (mapView.getMap().getMapScreenMarkers().size() > 0) {
-            Marker marker = mapView.getMap().getMapScreenMarkers().get(0);
-            marker.setPosition(latLng);
-            marker.setTitle("pos");
-            marker.setSnippet(latLng.longitude + " " + latLng.latitude);
-            marker.showInfoWindow();
-        } else {
+        if (mMarker == null) {
             MarkerOptions markerOptions = new MarkerOptions();
             markerOptions.position(latLng);
             markerOptions.title("pos");
             markerOptions.snippet(latLng.longitude + " " + latLng.latitude);
-            mapView.getMap().addMarker(markerOptions).showInfoWindow();
+            mMarker = mapView.getMap().addMarker(markerOptions);
         }
+        mMarker.setPosition(latLng);
+        mMarker.showInfoWindow();
     }
 
     /**
