@@ -6,7 +6,9 @@ import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.view.MenuItemCompat;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.view.menu.ExpandedMenuView;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.SearchView;
@@ -32,6 +34,7 @@ import com.amap.api.maps2d.model.MarkerOptions;
 import com.amap.api.services.help.Inputtips;
 import com.amap.api.services.help.Tip;
 import com.example.android.materialdesigncodelab.R;
+import com.example.android.materialdesigncodelab.ui.components.CustomLocationDialog;
 import com.example.android.materialdesigncodelab.ui.components.MarqueeFloatWindow;
 import com.example.android.materialdesigncodelab.utils.AmapUtils;
 import com.example.android.materialdesigncodelab.utils.MockLocationProvider;
@@ -205,9 +208,35 @@ public class InstantMapAcitivity extends AppCompatActivity implements AMapLocati
                 MockLocationProvider.stopMock(this);
                 stopService(mMarqueeViewIntent);
                 return true;
+            case R.id.action_custom_location:
+                showCustomLocationDialog();
+                return true;
             default:
                 return super.onOptionsItemSelected(item);
         }
+    }
+
+    private void showCustomLocationDialog() {
+        CustomLocationDialog.showDialog(this, new CustomLocationDialog.OnDialogClickedListener() {
+            @Override
+            public void onOk(View v, String latitude, String longitude) {
+                try {
+                    mLatlng = new LatLng(Double.valueOf(latitude), Double.valueOf(longitude));
+                    showMarkerAt(mLatlng);
+                    aMap.moveCamera(CameraUpdateFactory.zoomTo(18));
+                    aMap.moveCamera(CameraUpdateFactory.changeLatLng(mLatlng));
+                } catch (Exception e) {
+                } finally {
+
+                }
+
+            }
+
+            @Override
+            public void onCancel(View v) {
+
+            }
+        });
     }
 
 

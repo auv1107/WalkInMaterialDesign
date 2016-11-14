@@ -218,6 +218,8 @@ public class MainActivity extends AppCompatActivity {
             return true;
         } else if (id == android.R.id.home) {
             mDrawerLayout.openDrawer(GravityCompat.START);
+        } else if (id == R.id.action_custom_location) {
+            return true;
         }
         return super.onOptionsItemSelected(item);
     }

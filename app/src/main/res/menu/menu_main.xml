@@ -22,6 +22,11 @@
         android:title="@string/action_stopmock"
         android:orderInCategory="100"
         app:showAsAction="never" />
+    <item
+        android:id="@+id/action_custom_location"
+        android:title="@string/action_custom_location"
+        android:orderInCategory="99"
+        app:showAsAction="never" />
     <item android:id="@+id/action_search"
         android:title="Search"
         android:icon="@drawable/abc_ic_search_api_mtrl_alpha"
